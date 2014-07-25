@@ -63,6 +63,8 @@ private:
 			u32 TLEN   : 2;
 			u32        :26;
 		};
+		UEXI_CONTROL() { Hex = 0; }
+		UEXI_CONTROL(u32 _hex) { Hex = _hex; }
 	};
 
 	// STATE_TO_SAVE
@@ -84,8 +86,14 @@ private:
 	u32 m_ChannelId;
 
 	int updateInterrupts;
+	int xfer_complete_event;
+	u64 m_dma_time_start;
+	u64 m_dma_time_length;
+	u32 m_dma_data_start;
+	u32 m_dma_data_length;
 
 	static void UpdateInterrupts(u64 userdata, int cyclesLate);
+	static void TransferComplete(u64 userdata, int cyclesLate);
 
 public:
 	// get device
@@ -97,8 +105,6 @@ public:
 
 	void RegisterMMIO(MMIO::Mapping* mmio, u32 base);
 
-	void SendTransferComplete();
-
 	void AddDevice(const TEXIDevices device_type, const int device_num);
 	void AddDevice(IEXIDevice* pDevice, const int device_num, bool notifyPresenceChanged=true);
 
@@ -108,6 +114,8 @@ public:
 	bool IsCausingInterrupt();
 	void DoState(PointerWrap &p);
 	void PauseAndLock(bool doLock, bool unpauseOnUnlock);
+
+	u32 GetClockRate() const;
 
 	// This should only be used to transition interrupts from SP1 to Channel 2
 	void SetEXIINT(bool exiint) { m_Status.EXIINT = !!exiint; }
