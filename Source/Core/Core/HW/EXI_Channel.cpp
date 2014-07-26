@@ -308,6 +308,7 @@ void CEXIChannel::TransferComplete(u64 userdata, int cyclesLate)
 		target->m_dma_data_start = 0;
 		target->m_dma_data_length = 0;
 		target->m_Status.TCINT = 1;
+		ExpansionInterface::UpdateInterrupts();
 	}
 
 	target->m_Control.TSTART = 0;
