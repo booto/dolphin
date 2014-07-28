@@ -157,10 +157,10 @@ void Init()
 	m_InterruptTiming = 0;
 
 	g_LastCPUTime = 0;
-	g_CPUCyclesPerSample = 0xFFFFFFFFFFFULL;
 
 	g_AISSampleRate = 48000;
 	g_AIDSampleRate = 32000;
+	g_CPUCyclesPerSample = SystemTimers::GetTicksPerSecond() / g_AISSampleRate;
 
 	et_AI = CoreTiming::RegisterEvent("AICallback", Update);
 }

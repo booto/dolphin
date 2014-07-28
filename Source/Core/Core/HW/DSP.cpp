@@ -37,6 +37,7 @@
 #include "Core/HW/Memmap.h"
 #include "Core/HW/MMIO.h"
 #include "Core/HW/ProcessorInterface.h"
+#include "Core/HW/SystemTimers.h"
 #include "Core/PowerPC/PowerPC.h"
 
 namespace DSP
@@ -206,6 +207,7 @@ bool Update_DSP_ReadRegister();
 void Update_DSP_WriteRegister();
 
 static int et_GenerateDSPInterrupt;
+static int et_audio_dma;
 
 static void GenerateDSPInterrupt_Wrapper(u64 userdata, int cyclesLate)
 {
@@ -249,6 +251,7 @@ void Init(bool hle)
 	g_AR_REFRESH = 156; // 156MHz
 
 	et_GenerateDSPInterrupt = CoreTiming::RegisterEvent("DSPint", GenerateDSPInterrupt_Wrapper);
+	et_audio_dma = CoreTiming::RegisterEvent("DSP_AIDINT", UpdateAudioDMA);
 }
 
 void Shutdown()
@@ -392,9 +395,27 @@ void RegisterMMIO(MMIO::Mapping* mmio, u32 base)
 	mmio->Register(base | AUDIO_DMA_CONTROL_LEN,
 		MMIO::DirectRead<u16>(&g_audioDMA.AudioDMAControl.Hex),
 		MMIO::ComplexWrite<u16>([](u32, u16 val) {
+			UAudioDMAControl old_val = g_audioDMA.AudioDMAControl.Hex;
 			g_audioDMA.AudioDMAControl.Hex = val;
-			g_audioDMA.ReadAddress = g_audioDMA.SourceAddress;
-			g_audioDMA.BlocksLeft = g_audioDMA.AudioDMAControl.NumBlocks;
+			if (g_audioDMA.AudioDMAControl.Enable)
+			{
+				if (!old_val.Enable)
+				{
+					g_audioDMA.BlocksLeft = g_audioDMA.AudioDMAControl.NumBlocks;
+					g_audioDMA.ReadAddress = g_audioDMA.SourceAddress;
+					GenerateDSPInterrupt(DSP::INT_AID);
+					int period = 8 * SystemTimers::GetTicksPerSecond() / AudioInterface::GetAIDSampleRate();
+					CoreTiming::ScheduleEvent(period, et_audio_dma);
+				}
+				//WARN_LOG(AUDIO_INTERFACE, "numblocks: %d, period: %d", g_audioDMA.AudioDMAControl.NumBlocks, period);
+			}
+			else
+			{
+				if (old_val.Enable)
+				{
+					CoreTiming::RemoveEvent(et_audio_dma);
+				}
+			}
 		})
 	);
 
@@ -402,7 +423,7 @@ void RegisterMMIO(MMIO::Mapping* mmio, u32 base)
 	// the read side.
 	mmio->Register(base | AUDIO_DMA_BLOCKS_LEFT,
 		MMIO::ComplexRead<u16>([](u32) {
-			return (g_audioDMA.BlocksLeft > 0 ? g_audioDMA.BlocksLeft - 1 : 0);
+			return g_audioDMA.BlocksLeft * 32;
 		}),
 		MMIO::InvalidWrite<u16>()
 	);
@@ -470,33 +491,26 @@ void UpdateDSPSlice(int cycles)
 }
 
 // This happens at 4 khz, since 32 bytes at 4khz = 4 bytes at 32 khz (16bit stereo pcm)
-void UpdateAudioDMA()
+void UpdateAudioDMA(u64 userdata, int cyclesLate)
 {
-	if (g_audioDMA.AudioDMAControl.Enable && g_audioDMA.BlocksLeft)
+	void *address = Memory::GetPointer(g_audioDMA.ReadAddress);
+	unsigned samples = 8;
+	AudioCommon::SendAIBuffer((short*)address, samples);
+	g_audioDMA.ReadAddress += 32;
+	g_audioDMA.BlocksLeft--;
+
+	if (g_audioDMA.BlocksLeft == 0)
 	{
-		// Read audio at g_audioDMA.ReadAddress in RAM and push onto an
-		// external audio fifo in the emulator, to be mixed with the disc
-		// streaming output. If that audio queue fills up, we delay the
-		// emulator.
-
-		g_audioDMA.BlocksLeft--;
-		g_audioDMA.ReadAddress += 32;
-
-		if (g_audioDMA.BlocksLeft == 0)
-		{
-			void *address = Memory::GetPointer(g_audioDMA.SourceAddress);
-			unsigned samples = 8 * g_audioDMA.AudioDMAControl.NumBlocks;
-			AudioCommon::SendAIBuffer((short*)address, samples);
-			GenerateDSPInterrupt(DSP::INT_AID);
-			g_audioDMA.BlocksLeft = g_audioDMA.AudioDMAControl.NumBlocks;
-			g_audioDMA.ReadAddress = g_audioDMA.SourceAddress;
-		}
+		g_audioDMA.ReadAddress = g_audioDMA.SourceAddress;
+		g_audioDMA.BlocksLeft = g_audioDMA.AudioDMAControl.NumBlocks;
+		int period = 8 * SystemTimers::GetTicksPerSecond() / AudioInterface::GetAIDSampleRate();
+		CoreTiming::ScheduleEvent(period - cyclesLate, et_audio_dma);
+		GenerateDSPInterrupt(DSP::INT_AID);
 	}
 	else
 	{
-		// Send silence. Yeah, it's a bit of a waste to sample rate convert
-		// silence.  or hm. Maybe we shouldn't do this :)
-		AudioCommon::SendAIBuffer(0, AudioInterface::GetAIDSampleRate());
+		int period = 8 * SystemTimers::GetTicksPerSecond() / AudioInterface::GetAIDSampleRate();
+		CoreTiming::ScheduleEvent(period - cyclesLate, et_audio_dma);
 	}
 }
 
