@@ -326,7 +326,7 @@ void RunGpuLoop()
 
           AsyncRequests::GetInstance()->PullEvents();
 
-          CommandProcessor::SetCPStatusFromGPU();
+          //CommandProcessor::SetCPStatusFromGPU();
 
           // check if we are able to run this buffer
           while (!CommandProcessor::IsInterruptWaiting() && fifo.bFF_GPReadEnable &&
