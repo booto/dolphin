@@ -325,13 +325,13 @@ void UpdateInterrupts(u64 userdata)
   if (userdata)
   {
     s_interrupt_set.Set();
-    DEBUG_LOG(COMMANDPROCESSOR, "Interrupt set");
+    WARN_LOG(COMMANDPROCESSOR, "Interrupt set");
     ProcessorInterface::SetInterrupt(INT_CAUSE_CP, true);
   }
   else
   {
     s_interrupt_set.Clear();
-    DEBUG_LOG(COMMANDPROCESSOR, "Interrupt cleared");
+    WARN_LOG(COMMANDPROCESSOR, "Interrupt cleared");
     ProcessorInterface::SetInterrupt(INT_CAUSE_CP, false);
   }
   CoreTiming::ForceExceptionCheck(0);
@@ -359,21 +359,25 @@ void SetCPStatusFromGPU()
     {
       if (!fifo.bFF_Breakpoint)
       {
-        DEBUG_LOG(COMMANDPROCESSOR, "Hit breakpoint at %i", fifo.CPReadPointer);
+        WARN_LOG(COMMANDPROCESSOR, "Hit breakpoint at %i", fifo.CPReadPointer);
         fifo.bFF_Breakpoint = true;
+        WARN_LOG(COMMANDPROCESSOR, "BASE: %08x END: %08x WP: %08x RP: %08x", fifo.CPBase,
+            fifo.CPEnd, fifo.CPWritePointer, fifo.CPReadPointer,
+        WARN_LOG(COMMANDPROCESSOR, "BP: %08x HW: %08x LW: %08x", fifo.CPBreakpoint,
+            fifo.CPHiWatermark, fifo.CPLoWatermark);
       }
     }
     else
     {
       if (fifo.bFF_Breakpoint)
-        DEBUG_LOG(COMMANDPROCESSOR, "Cleared breakpoint at %i", fifo.CPReadPointer);
+        WARN_LOG(COMMANDPROCESSOR, "Cleared breakpoint at %i", fifo.CPReadPointer);
       fifo.bFF_Breakpoint = false;
     }
   }
   else
   {
     if (fifo.bFF_Breakpoint)
-      DEBUG_LOG(COMMANDPROCESSOR, "Cleared breakpoint at %i", fifo.CPReadPointer);
+      WARN_LOG(COMMANDPROCESSOR, "Cleared breakpoint at %i", fifo.CPReadPointer);
     fifo.bFF_Breakpoint = false;
   }
 
@@ -426,7 +430,7 @@ void SetCPStatusFromCPU()
       if (!interrupt || bpInt || undfInt || ovfInt)
       {
         s_interrupt_set.Set(interrupt);
-        DEBUG_LOG(COMMANDPROCESSOR, "Interrupt set");
+        WARN_LOG(COMMANDPROCESSOR, "Interrupt set");
         ProcessorInterface::SetInterrupt(INT_CAUSE_CP, interrupt);
       }
     }
@@ -447,12 +451,16 @@ void SetCpStatusRegister()
   m_CPStatusReg.UnderflowLoWatermark = fifo.bFF_LoWatermark;
   m_CPStatusReg.OverflowHiWatermark = fifo.bFF_HiWatermark;
 
-  DEBUG_LOG(COMMANDPROCESSOR, "\t Read from STATUS_REGISTER : %04x", m_CPStatusReg.Hex);
-  DEBUG_LOG(
+  WARN_LOG(COMMANDPROCESSOR, "\t Read from STATUS_REGISTER : %04x", m_CPStatusReg.Hex);
+  WARN_LOG(
       COMMANDPROCESSOR, "(r) status: iBP %s | fReadIdle %s | fCmdIdle %s | iOvF %s | iUndF %s",
       m_CPStatusReg.Breakpoint ? "ON" : "OFF", m_CPStatusReg.ReadIdle ? "ON" : "OFF",
       m_CPStatusReg.CommandIdle ? "ON" : "OFF", m_CPStatusReg.OverflowHiWatermark ? "ON" : "OFF",
       m_CPStatusReg.UnderflowLoWatermark ? "ON" : "OFF");
+  WARN_LOG(COMMANDPROCESSOR, "BASE: %08x END: %08x WP: %08x RP: %08x", fifo.CPBase, fifo.CPEnd,
+      fifo.CPWritePointer, fifo.CPReadPointer,
+  WARN_LOG(COMMANDPROCESSOR, "BP: %08x HW: %08x LW: %08x", fifo.CPBreakpoint, fifo.CPHiWatermark,
+      fifo.CPLoWatermark);
 }
 
 void SetCpControlRegister()
@@ -478,6 +486,10 @@ void SetCpControlRegister()
             fifo.bFF_BPInt ? "ON" : "OFF", m_CPCtrlReg.FifoOverflowIntEnable ? "ON" : "OFF",
             m_CPCtrlReg.FifoUnderflowIntEnable ? "ON" : "OFF",
             m_CPCtrlReg.GPLinkEnable ? "ON" : "OFF");
+  WARN_LOG(COMMANDPROCESSOR, "BASE: %08x END: %08x WP: %08x RP: %08x", fifo.CPBase, fifo.CPEnd,
+      fifo.CPWritePointer, fifo.CPReadPointer,
+  WARN_LOG(COMMANDPROCESSOR, "BP: %08x HW: %08x LW: %08x", fifo.CPBreakpoint, fifo.CPHiWatermark,
+      fifo.CPLoWatermark);
 }
 
 // NOTE: We intentionally don't emulate this function at the moment.
