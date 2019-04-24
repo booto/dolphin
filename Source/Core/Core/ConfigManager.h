@@ -98,6 +98,7 @@ struct SConfig
   bool bJITPairedOff = false;
   bool bJITSystemRegistersOff = false;
   bool bJITBranchOff = false;
+  int iJITConvertDoubleToSingleStrategy = 0;
 
   bool bFastmem;
   bool bFPRF = false;

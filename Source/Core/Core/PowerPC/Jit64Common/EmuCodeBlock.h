@@ -123,7 +123,8 @@ public:
 
   // RSCRATCH might get trashed
   void ConvertSingleToDouble(Gen::X64Reg dst, Gen::X64Reg src, bool src_is_gpr = false);
-  void ConvertDoubleToSingle(Gen::X64Reg dst, Gen::X64Reg src);
+  void ConvertDoubleToSingleAccurate(Gen::X64Reg dst, Gen::X64Reg src);
+  void ConvertDoubleToSingleFast(Gen::X64Reg dst, Gen::X64Reg src);
   void SetFPRF(Gen::X64Reg xmm);
   void Clear();
 

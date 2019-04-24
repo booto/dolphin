@@ -349,6 +349,7 @@ void SConfig::SaveJitDebugSettings(IniFile& ini)
   section->Set("JitPairedOff", bJITPairedOff);
   section->Set("JitSystemRegistersOff", bJITSystemRegistersOff);
   section->Set("JitBranchOff", bJITBranchOff);
+  section->Set("JitConvertDoubleToSingleStrategy", iJITConvertDoubleToSingleStrategy);
 }
 
 void SConfig::LoadSettings()
@@ -642,6 +643,7 @@ void SConfig::LoadJitDebugSettings(IniFile& ini)
   section->Get("JitPairedOff", &bJITPairedOff, false);
   section->Get("JitSystemRegistersOff", &bJITSystemRegistersOff, false);
   section->Get("JitBranchOff", &bJITBranchOff, false);
+  section->Get("JitConvertDoubleToSingleStrategy", &iJITConvertDoubleToSingleStrategy, 0);
 }
 
 void SConfig::ResetRunningGameMetadata()

@@ -892,7 +892,7 @@ alignas(16) static const __m128i double_qnan_bit = _mm_set_epi64x(0xffffffffffff
 // valid range for a single (or a single denormal) is undefined.
 // But testing on actual hardware shows it always picks bits 0..1 and 5..34
 // unless the exponent is in the range of 874 to 896.
-void EmuCodeBlock::ConvertDoubleToSingle(X64Reg dst, X64Reg src)
+void EmuCodeBlock::ConvertDoubleToSingleAccurate(X64Reg dst, X64Reg src)
 {
   MOVSD(XMM1, R(src));
 
@@ -949,6 +949,56 @@ void EmuCodeBlock::ConvertDoubleToSingle(X64Reg dst, X64Reg src)
   // End
   SetJumpTarget(end);
   MOVDDUP(dst, R(XMM1));
+}
+
+// Smallest positive double that results in a normalized single.
+alignas(16) static const double min_norm_single = std::numeric_limits<float>::min();
+alignas(16) static const __m128i single_qnan_bit = _mm_set_epi64x(0xffffffffffffffff,
+                                                                  0xffffffffffbfffff);
+void EmuCodeBlock::ConvertDoubleToSingleFast(X64Reg dst, X64Reg src)
+{
+  // Most games have flush-to-zero enabled, which causes the single -> double -> single process here
+  // to be lossy.
+  // This is a problem when games use float operations to copy non-float data.
+  // Changing the FPU mode is very expensive, so we can't do that.
+  // Here, check to see if the source is small enough that it will result in a denormal, and pass it
+  // to the x87 unit
+  // if it is.
+  avx_op(&XEmitter::VPAND, &XEmitter::PAND, XMM0, R(src), MConst(double_sign_bit), true, true);
+  UCOMISD(XMM0, MConst(min_norm_single));
+  FixupBranch nanConversion = J_CC(CC_P, true);
+  FixupBranch denormalConversion = J_CC(CC_B, true);
+  CVTSD2SS(dst, R(src));
+
+  SwitchToFarCode();
+  SetJumpTarget(nanConversion);
+  MOVQ_xmm(R(RSCRATCH), src);
+  // Put the quiet bit into CF.
+  BT(64, R(RSCRATCH), Imm8(51));
+  CVTSD2SS(dst, R(src));
+  FixupBranch continue1 = J_CC(CC_C, true);
+  // Clear the quiet bit of the SNaN, which was 0 (signalling) but got set to 1 (quiet) by
+  // conversion.
+  ANDPS(dst, MConst(single_qnan_bit));
+  FixupBranch continue2 = J(true);
+
+  SetJumpTarget(denormalConversion);
+  // We're using 8 bytes on the stack
+  SUB(64, R(RSP), Imm8(8));
+  MOVSD(MatR(RSP), src);
+  FLD(64, MatR(RSP));
+  FSTP(32, MatR(RSP));
+  MOVSS(dst, MatR(RSP));
+  ADD(64, R(RSP), Imm8(8));
+  FixupBranch continue3 = J(true);
+  SwitchToNearCode();
+
+  SetJumpTarget(continue1);
+  SetJumpTarget(continue2);
+  SetJumpTarget(continue3);
+  // We'd normally need to MOVDDUP here to put the single in the top half of the output register
+  // too, but
+  // this function is only used to go directly to a following store, so we omit the MOVDDUP here.
 }
 
 // Converting single->double is a bit easier because all single denormals are double normals.

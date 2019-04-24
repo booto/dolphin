@@ -115,7 +115,20 @@ void Jit64::stfXXX(UGeckoInstruction inst)
     {
       RCX64Reg Rs = fpr.Bind(s, RCMode::Read);
       RegCache::Realize(Rs);
-      ConvertDoubleToSingle(XMM0, Rs);
+      switch (SConfig::GetInstance().iJITConvertDoubleToSingleStrategy)
+      {
+      default:
+      case 0:  // asm-helper
+        MOVSD(XMM0, R(Rs));
+        CALL(asm_routines.cdts);
+        break;
+      case 1:  // inlined accurate
+        ConvertDoubleToSingleAccurate(XMM0, Rs);
+        break;
+      case 2:  // inlined fast
+        ConvertDoubleToSingleFast(XMM0, Rs);
+        break;
+      }
     }
     MOVD_xmm(R(RSCRATCH), XMM0);
   }
