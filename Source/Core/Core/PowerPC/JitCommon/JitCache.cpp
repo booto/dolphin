@@ -18,7 +18,10 @@
 #include <utility>
 
 #include "Common/CommonTypes.h"
+#include "Common/File.h"
+#include "Common/FileUtil.h"
 #include "Common/JitRegister.h"
+#include "Common/Swap.h"
 #include "Core/ConfigManager.h"
 #include "Core/Core.h"
 #include "Core/PowerPC/JitCommon/JitBase.h"
@@ -56,6 +59,22 @@ void JitBaseBlockCache::Shutdown()
   JitRegister::Shutdown();
 }
 
+struct CacheEntry
+{
+  u32 base;
+  u32 size;
+  uintptr_t jitcache_address;
+  size_t jitcache_size;
+};
+
+static std::vector<CacheEntry> s_cacheentries;
+
+static void DumpCacheEntries()
+{
+  File::IOFile f(File::GetUserPath(F_JITCACHE_DUMP_IDX), "wb");
+  f.WriteBytes(s_cacheentries.data(), sizeof(CacheEntry) * s_cacheentries.size());
+  s_cacheentries.clear();
+}
 // This clears the JIT cache. It's called from JitCache.cpp when the JIT cache
 // is full and when saving and loading states.
 void JitBaseBlockCache::Clear()
@@ -76,6 +95,7 @@ void JitBaseBlockCache::Clear()
   valid_block.ClearAll();
 
   fast_block_map.fill(nullptr);
+  DumpCacheEntries();
 }
 
 void JitBaseBlockCache::Reset()
@@ -133,6 +153,10 @@ void JitBaseBlockCache::FinalizeBlock(JitBlock& block, bool block_link,
     LinkBlock(block);
   }
 
+  s_cacheentries.push_back({Common::swap32(block.effectiveAddress),
+                            Common::swap32(block.originalSize),
+                            Common::swap64((uintptr_t)block.checkedEntry),
+                            Common::swap64(block.codeSize)});
   Common::Symbol* symbol = nullptr;
   if (JitRegister::IsEnabled() &&
       (symbol = g_symbolDB.GetSymbolFromAddr(block.effectiveAddress)) != nullptr)

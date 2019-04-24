@@ -805,6 +805,7 @@ static void RebuildUserDirectories(unsigned int dir_index)
         s_user_paths[D_MEMORYWATCHER_IDX] + MEMORYWATCHER_LOCATIONS;
     s_user_paths[F_MEMORYWATCHERSOCKET_IDX] =
         s_user_paths[D_MEMORYWATCHER_IDX] + MEMORYWATCHER_SOCKET;
+    s_user_paths[F_JITCACHE_DUMP_IDX] = s_user_paths[D_DUMP_IDX] + JITCACHE_DUMP;
 
     // The shader cache has moved to the cache directory, so remove the old one.
     // TODO: remove that someday.
