@@ -110,4 +110,25 @@ void CopyToEmuSwapped(u32 address, const T* data, size_t size)
   for (size_t i = 0; i < size / sizeof(T); i++)
     dest[i] = Common::FromBigEndian(data[i]);
 }
+
+constexpr bool IsMem1Address(u32 physical_address)
+{
+  return (physical_address & 0x18000000) == 0x00000000;
+}
+
+constexpr u32 Mem1Offset(u32 physical_address)
+{
+  return (physical_address & 0x01ffffff);
+}
+
+constexpr bool IsMem2Address(u32 physical_address)
+{
+  return (physical_address & 0x18000000) == 0x10000000;
+}
+
+constexpr u32 Mem2Offset(u32 physical_address)
+{
+  return (physical_address & 0x03ffffff);
+}
+
 }  // namespace Memory

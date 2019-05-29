@@ -180,10 +180,11 @@ static T ReadFromHardware(u32 em_address)
     }
     if ((em_address & (HW_PAGE_SIZE - 1)) > HW_PAGE_SIZE - sizeof(T))
     {
-      // This could be unaligned down to the byte level... hopefully this is rare, so doing it this
-      // way isn't too terrible.
-      // TODO: floats on non-word-aligned boundaries should technically cause alignment exceptions.
-      // Note that "word" means 32-bit, so paired singles or doubles might still be 32-bit aligned!
+      // This could be unaligned down to the byte level... hopefully this is rare, so doing it
+      // this way isn't too terrible.
+      // TODO: floats on non-word-aligned boundaries should technically cause alignment
+      // exceptions. Note that "word" means 32-bit, so paired singles or doubles might still be
+      // 32-bit aligned!
       u32 em_address_next_page = (em_address + sizeof(T) - 1) & ~(HW_PAGE_SIZE - 1);
       auto addr_next_page = TranslateAddress<flag>(em_address_next_page);
       if (!addr_next_page.Success())
@@ -207,21 +208,20 @@ static T ReadFromHardware(u32 em_address)
 
   // TODO: Make sure these are safe for unaligned addresses.
 
-  if ((em_address & 0xF8000000) == 0x00000000)
+  if (Memory::IsMem1Address(em_address))
   {
-    // Handle RAM; the masking intentionally discards bits (essentially creating
-    // mirrors of memory).
+    em_address = Memory::Mem1Offset(em_address);
     // TODO: Only the first REALRAM_SIZE is supposed to be backed by actual memory.
     T value;
-    std::memcpy(&value, &Memory::m_pRAM[em_address & Memory::RAM_MASK], sizeof(T));
+    std::memcpy(&value, &Memory::m_pRAM[em_address], sizeof(T));
     return bswap(value);
   }
 
-  if (Memory::m_pEXRAM && (em_address >> 28) == 0x1 &&
-      (em_address & 0x0FFFFFFF) < Memory::EXRAM_SIZE)
+  if (Memory::m_pEXRAM && Memory::IsMem2Address(em_address))
   {
+    em_address = Memory::Mem2Offset(em_address);
     T value;
-    std::memcpy(&value, &Memory::m_pEXRAM[em_address & 0x0FFFFFFF], sizeof(T));
+    std::memcpy(&value, &Memory::m_pEXRAM[em_address], sizeof(T));
     return bswap(value);
   }
 
@@ -269,10 +269,11 @@ static void WriteToHardware(u32 em_address, const T data)
     if ((em_address & (sizeof(T) - 1)) &&
         (em_address & (HW_PAGE_SIZE - 1)) > HW_PAGE_SIZE - sizeof(T))
     {
-      // This could be unaligned down to the byte level... hopefully this is rare, so doing it this
-      // way isn't too terrible.
-      // TODO: floats on non-word-aligned boundaries should technically cause alignment exceptions.
-      // Note that "word" means 32-bit, so paired singles or doubles might still be 32-bit aligned!
+      // This could be unaligned down to the byte level... hopefully this is rare, so doing it
+      // this way isn't too terrible.
+      // TODO: floats on non-word-aligned boundaries should technically cause alignment
+      // exceptions. Note that "word" means 32-bit, so paired singles or doubles might still be
+      // 32-bit aligned!
       u32 em_address_next_page = (em_address + sizeof(T) - 1) & ~(HW_PAGE_SIZE - 1);
       auto addr_next_page = TranslateAddress<flag>(em_address_next_page);
       if (!addr_next_page.Success())
@@ -296,21 +297,20 @@ static void WriteToHardware(u32 em_address, const T data)
 
   // TODO: Make sure these are safe for unaligned addresses.
 
-  if ((em_address & 0xF8000000) == 0x00000000)
+  if (Memory::IsMem1Address(em_address))
   {
-    // Handle RAM; the masking intentionally discards bits (essentially creating
-    // mirrors of memory).
+    em_address = Memory::Mem1Offset(em_address);
     // TODO: Only the first REALRAM_SIZE is supposed to be backed by actual memory.
     const T swapped_data = bswap(data);
-    std::memcpy(&Memory::m_pRAM[em_address & Memory::RAM_MASK], &swapped_data, sizeof(T));
+    std::memcpy(&Memory::m_pRAM[em_address], &swapped_data, sizeof(T));
     return;
   }
 
-  if (Memory::m_pEXRAM && (em_address >> 28) == 0x1 &&
-      (em_address & 0x0FFFFFFF) < Memory::EXRAM_SIZE)
+  if (Memory::m_pEXRAM && Memory::IsMem2Address(em_address))
   {
+    em_address = Memory::Mem2Offset(em_address);
     const T swapped_data = bswap(data);
-    std::memcpy(&Memory::m_pEXRAM[em_address & 0x0FFFFFFF], &swapped_data, sizeof(T));
+    std::memcpy(&Memory::m_pEXRAM[em_address], &swapped_data, sizeof(T));
     return;
   }
 

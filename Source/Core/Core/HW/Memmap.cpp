@@ -391,16 +391,13 @@ std::string GetString(u32 em_address, size_t size)
 
 u8* GetPointer(u32 address)
 {
-  // TODO: Should we be masking off more bits here?  Can all devices access
-  // EXRAM?
-  address &= 0x3FFFFFFF;
-  if (address < REALRAM_SIZE)
-    return m_pRAM + address;
+  if (IsMem1Address(address))
+    return m_pRAM + Mem1Offset(address);
 
   if (m_pEXRAM)
   {
-    if ((address >> 28) == 0x1 && (address & 0x0fffffff) < EXRAM_SIZE)
-      return m_pEXRAM + (address & EXRAM_MASK);
+    if (IsMem2Address(address))
+      return m_pEXRAM + Mem2Offset(address);
   }
 
   PanicAlert("Unknown Pointer 0x%08x PC 0x%08x LR 0x%08x", address, PC, LR);
