@@ -6,12 +6,18 @@
 
 #include "Common/ChunkFile.h"
 #include "Common/CommonTypes.h"
+#include "Common/FileUtil.h"
 #include "Common/MsgHandler.h"
+#include "Core/ConfigManager.h"
 #include "Core/Core.h"
+#include "Core/DSP/DSPCaptureLogger.h"
+#include "Core/DSP/DSPCore.h"
 #include "Core/HW/DSPHLE/UCodes/UCodes.h"
 #include "Core/HW/SystemTimers.h"
 
-namespace DSP::HLE
+namespace DSP
+{
+namespace HLE
 {
 DSPHLE::DSPHLE() = default;
 
@@ -24,6 +30,12 @@ bool DSPHLE::Initialize(bool wii, bool dsp_thread)
   m_last_ucode = nullptr;
   m_halt = false;
   m_assert_interrupt = false;
+
+  if (SConfig::GetInstance().m_DSPCaptureLog)
+  {
+    const std::string pcap_path = File::GetUserPath(D_DUMPDSP_IDX) + "dsp_hle.pcap";
+    m_capture_logger = std::make_unique<PCAPDSPCaptureLogger>(pcap_path);
+  }
 
   SetUCode(UCODE_ROM);
   m_dsp_control.DSPHalt = 1;
@@ -41,6 +53,7 @@ void DSPHLE::DSP_StopSoundStream()
 void DSPHLE::Shutdown()
 {
   m_ucode = nullptr;
+  m_capture_logger.reset();
 }
 
 void DSPHLE::DSP_Update(int cycles)
@@ -61,6 +74,12 @@ void DSPHLE::SendMailToDSP(u32 mail)
   if (m_ucode != nullptr)
   {
     DEBUG_LOG(DSP_MAIL, "CPU writes 0x%08x", mail);
+    if (this->m_capture_logger)
+    {
+      this->m_capture_logger->LogIFXRead(DSP::DSP_DMBH, (mail >> 16) & 0xffff);
+      this->m_capture_logger->LogIFXRead(DSP::DSP_DMBL, (mail >> 0) & 0xffff);
+    }
+
     m_ucode->HandleMail(mail);
   }
 }
@@ -214,4 +233,5 @@ u16 DSPHLE::DSP_ReadControlRegister()
 void DSPHLE::PauseAndLock(bool do_lock, bool unpause_on_unlock)
 {
 }
-}  // namespace DSP::HLE
+}  // namespace HLE
+}  // namespace DSP

@@ -7,6 +7,8 @@
 #include <memory>
 
 #include "Common/CommonTypes.h"
+#include "Common/PcapFile.h"
+#include "Core/DSP/DSPCaptureLogger.h"
 #include "Core/DSPEmulator.h"
 #include "Core/HW/DSP.h"
 #include "Core/HW/DSPHLE/MailHandler.h"
@@ -42,6 +44,8 @@ public:
   CMailHandler& AccessMailHandler() { return m_mail_handler; }
   void SetUCode(u32 crc);
   void SwapUCode(u32 crc);
+
+  std::unique_ptr<PCAPDSPCaptureLogger> m_capture_logger;
 
 private:
   void SendMailToDSP(u32 mail);

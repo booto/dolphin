@@ -160,7 +160,7 @@ static bool FillDSPInitOptions(DSPInitOptions* opts)
 
   if (SConfig::GetInstance().m_DSPCaptureLog)
   {
-    const std::string pcap_path = File::GetUserPath(D_DUMPDSP_IDX) + "dsp.pcap";
+    const std::string pcap_path = File::GetUserPath(D_DUMPDSP_IDX) + "dsp_lle.pcap";
     opts->capture_logger = new PCAPDSPCaptureLogger(pcap_path);
   }
 

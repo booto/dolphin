@@ -129,8 +129,7 @@ void AXUCode::HandleCommandList()
       SetupProcessing(HILO_TO_32(addr));
       break;
 
-    case CMD_DL_AND_VOL_MIX:
-    {
+    case CMD_DL_AND_VOL_MIX: {
       addr_hi = m_cmdlist[curr_idx++];
       addr_lo = m_cmdlist[curr_idx++];
       u16 vol_main = m_cmdlist[curr_idx++];
@@ -225,8 +224,7 @@ void AXUCode::HandleCommandList()
       SetOppositeLR(HILO_TO_32(addr));
       break;
 
-    case CMD_UNK_12:
-    {
+    case CMD_UNK_12: {
       u16 samp_val = m_cmdlist[curr_idx++];
       u16 idx = m_cmdlist[curr_idx++];
       addr_hi = m_cmdlist[curr_idx++];
@@ -240,8 +238,7 @@ void AXUCode::HandleCommandList()
 
     // Send the contents of MAIN LRS, AUXA LRS and AUXB S to RAM, and
     // mix data to MAIN LR and AUXB LR.
-    case CMD_SEND_AUX_AND_MIX:
-    {
+    case CMD_SEND_AUX_AND_MIX: {
       // Address for Main + AUXA LRS upload
       u16 main_auxa_up_hi = m_cmdlist[curr_idx++];
       u16 main_auxa_up_lo = m_cmdlist[curr_idx++];
@@ -509,6 +506,12 @@ void AXUCode::UploadLRS(u32 dst_addr)
     buffers[1][i] = Common::swap32(m_samples_right[i]);
     buffers[2][i] = Common::swap32(m_samples_surround[i]);
   }
+  if (m_dsphle->m_capture_logger)
+  {
+    m_dsphle->m_capture_logger->LogDMA(1, dst_addr, 0x1111, sizeof(buffers),
+                                       reinterpret_cast<u8*>(buffers));
+  }
+
   memcpy(HLEMemory_Get_Pointer(dst_addr), buffers, sizeof(buffers));
 }
 
